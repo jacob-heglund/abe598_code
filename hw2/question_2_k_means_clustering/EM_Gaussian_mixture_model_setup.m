@@ -7,7 +7,7 @@ clear all
 load gauss_mix_data
 
 k = max(size(means)); % parameteric method, so number of parameters known
-N = max(size(X));
+N = max(size(X)); % number of data points
 prior_mean=randn(2,5);
 prior_var=vars*0+1;
 rho=[0.8 0.1 0.05 0.025 0.025];
@@ -21,21 +21,24 @@ posterior_var=prior_var;
 % step 1 - randomly initialize the centroid positions in the space (2D plane)
 centroid = randn(2,5);
 
-c1 = clusterClass;
-%{
-c2 = clusterClass;
-c3 = clusterClass;
-c4 = clusterClass;
-c5 = clusterClass;
-
+cluster = zeros(k, 1);
+%IDEA: have an array with each entry as a cluster-object, then deal with
+% the data like that
 for i = 1:k
-    
+%TODO: get this to work...
+    cluster(i) = clusterClass;
 
 end
 %}
 % step 2 - for each data point, find the nearest centroid using 2-norm.
-% assign data point to that cluster
+% assign data point as a member to that cluster.
 
+
+% step 3 - for each cluster, update the centroid position by setting it as the 
+% mean distance of the members in the cluster
+clusterClass.centroid = (1/clusterClass.numMembers)*[%sum of x coordinates of all members of the cluster; %sum of y coordinates of all members of the cluster]
+
+% repeat steps 2 and 3 until no members change clusters
 
 %% draw from posterior
 %for jj = 1:max(size(means))
