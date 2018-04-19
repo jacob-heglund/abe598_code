@@ -6,10 +6,15 @@ close all;
 load Gauss_data1.mat
 x = Z(1, :);
 y = Z(2, :);
-data = [x ;y];
+data = [x; y];
 
 % number of data points
 numData = size(data,2);
+
+% learn the cluster penalty parameter lambda
+k_approx = 5;
+lambda = findLambda(x,y,k_approx);
+
 
 % number of initial clusters
 k = 1;
@@ -17,17 +22,14 @@ k = 1;
 % error for stop condition
 tolerance = 10^-4;
 
-%% cluster penalty parameter, learn this 
-lambda = 40;
-
 %% step 1
 L1 = data;
-% mean1 = [mean(x); mean(y)];
+mean1 = [mean(x); mean(y)];
 
 % hack, just set it as a random point in the data
-randInteger1 = randi([1, numData]);
-randInteger2 = randi([1, numData]);
-mean1 = [data(randInteger1); data(randInteger2)];
+%randInteger1 = randi([1, numData]);
+%randInteger2 = randi([1, numData]);
+%mean1 = [data(randInteger1); data(randInteger2)];
 
 % each column is the mean x-y values for a different cluster
 clusterMeans = [mean1];
@@ -104,11 +106,7 @@ while (done == 0)
     end
     
 end
- 
-    
-    
-
-
+#}
 
 
 

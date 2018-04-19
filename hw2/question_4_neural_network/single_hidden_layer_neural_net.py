@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Apr 16 16:20:01 2018
+Created on Tue Apr 17 22:15:31 2018
 
 @author: Jacob
 """
@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import math
 from numpy import random
+import matplotlib.pyplot as plt
 
 # load data into numpy array with colums PDOT_REC  X_REC  XDOT_REC
 numFiles = 5
@@ -23,99 +24,95 @@ for i in range(1,numFiles+1):
 data = data[1:, :]
 
 # input data with each row as a training example
-X = data[:, 1:3]
+#X = data[:, 1:3]
+X = data[0:10, 1:3]
+
 numData = np.shape(X)[0]
 
 # output data
-y = (data[:, 0])
+#y = (data[:, 0])
+y = (data[0:10, 0])
 
-np.random.seed(1)
-import numpy as np
 
-class Neural_Network(object):
-    def __init__(self):
-        # definte hyperparameters
-        self.inputLayerSize = 2
-        self.hiddenLayerSize = 10
-        self.outputLayerSize = 1
-        
-        # weights (parameters to optimize over)
-        self.W1 = np.random.rand(self.inputLayerSize, self.hiddenLayerSize)
-        
-        self.W2 = np.random.rand(self.hiddenLayerSize, self.outputLayerSize)
+y = np.reshape(y, (numData, 1))
+
+def sigmoid(x):
+    # return the sigmoid
+    return 1 / (1 + np.exp(-x))
+
+# return the first derivative of the sigmoid
+def sigmoidPrime(x):
+    return np.exp(-x) / ((1+np.exp(-x))**2)
+
+def NN(X, y, numEpochs):   
+    costs = np.zeros((1, numEpochs))
+    numData = np.shape(X)[0]
     
-    # propagates input through the network
-    def forward(self, X):
-        self.z2 = np.dot(X, self.W1)
-        self.a2 = self.sigmoid(self.z2)
-        self.z3 = np.dot(self.a2, self.W2)
-        yHat = self.sigmoid(self.z3)
-        return yHat
+    # initialize layer parameters
+    inputLayerSize = 2 # number of parameters of the system
+    hiddenLayerSize = 10
+    outputLayerSize = 1 # number of outputs of the system
     
-    def costFunction(self, X, y):
-        # computer cost for given X, y using weights stored in the class
-        self.yHat = self.forward(X)
-        J = (1/2) * sum((y-self.yHat)**2)
-        return J
+    W1 = np.random.rand(inputLayerSize, hiddenLayerSize)
+    W2 = np.random.rand(hiddenLayerSize, outputLayerSize)
+    for epoch in range(0, numEpochs):
+        totalCost = 0    
+        for i in range(0, numData):
+            xData = np.reshape(X[i, :], (1,2))
+            yData = y[i]
+# =============================================================================
+            # forward propagation
+# =============================================================================
+            # layer 1 - input layer
+            # z0 is size (1 x 2)
+            z0 = xData
+# =============================================================================
+            # layer 2 - hidden layer
+            # z1 -> (1x2)
+            # W1 -> (2x10)
+            # z2 is size (1 x 10)
+            z2 = np.dot(z0, W1)
+            # use the activation function
+            a2 = sigmoid(z2)
+# =============================================================================
+            # layer 3 - output layer
+            # a2 is size (1x10)
+            # W2 is size (10x1)
+            
+            # size of z3 is (1x1)
+            z3 = np.dot(a2, W2)
+            
+            # yHat is the output of the neural net, a guess for what pDot is given 
+            # the inputs phi, p
+            # size of yHat is (1x1)
+            yHat = sigmoid(z3)
+                    
+            totalCost = totalCost + (1/2) * (yData-yHat)**2
+# =============================================================================
+            # backpropagation
+# =============================================================================
+            learningRate = 10.0 / (epoch+1.0)
+            
+            delta3 = np.multiply(-(yData-yHat), sigmoidPrime(z3))
+            dJdW2 = np.dot(a2.T, delta3)
+            
+            delta2 = np.dot(delta3, W2.T)* sigmoidPrime(z2)
+            dJdW1 = np.dot(xData.T, delta2)
+                    
+            W1 = W1 - learningRate * dJdW1
+            W2 = W2 - learningRate * dJdW2
+        costs[0, epoch] = totalCost / numData
+        #print(epoch)
+    return costs
+
+numEpochs = 50000
+costs = NN(X,y,numEpochs)        
+
+#plt.plot(costs)
+
         
-    # compute derivatives with respect to W1 and W2
-    def costFunctionPrime(self, X, y):
-        self.yHat = self.forward(X)
+improvement = (costs[0,0] - costs[0,-1]) / costs[0,0]         
+print(improvement*100)        
         
-        delta3 = np.multiply(-(y-self.yHat), self.sigmoidPrime(self.z3))
-        dJdW2 = np.dot(self.a2.T, delta3)
-    
-        delta2 = np.dot(delta3, self.W2.T)*self.sigmoidPrime(self.z2)
-        dJdW1 = np.dot(X.T, delta2)
         
-        return dJdW2, dJdW1
-    
-    def backProp(self, X, y):
-        self.learningRate = .2
-        dJdW2, dJdW1 = self.costFunctionPrime(X, y)
-        # do gradient descent on the weights to reduce the cost
-        self.W1 = self.W1 - self.learningRate*dJdW1
-        self.W2 = self.W2 - self.learningRate*dJdW2
-
-    def sigmoid(self, z):
-        return 1/(1+np.exp(-z))
-
-    def sigmoidPrime(self, z):
-        # derivative of the sigmoid function
-        return np.exp(-z) / ((1+np.exp(-z))**2)
         
-
-NN = Neural_Network()
-numEpochs = 10000
-    
-for i in range(0, numEpochs):
-    for j in range(0, numData):
-        xData = X[j,:]
-        yData = y[j]
-    
-        NN.backProp(xData,yData)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
