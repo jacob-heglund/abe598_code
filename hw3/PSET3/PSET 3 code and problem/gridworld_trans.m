@@ -33,7 +33,7 @@ end
                     s_new(1) = s_old(1); 
                     s_new(2) = s_old(2) + 1;
                     
-                case 4 % Right
+                case 4 % Left
                     s_new(1) = s_old(1) - 1; 
                     s_new(2) = s_old(2);
                     

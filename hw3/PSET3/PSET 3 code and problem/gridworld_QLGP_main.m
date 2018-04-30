@@ -55,11 +55,9 @@ alpha_dec = 0.5; % Learning Rate Decay Rate
 mu=1;
 p_eps_init = 0.8; % Initial Exploration Rate
 p_eps_dec = 0.1; % Exploration Rate Decay
-approximation_on=0; %0 for tabular, 1 for RBF with copy-paste features, 2 for RBF with centers over actions,3 GP
-max_points=25;%50 %max centres allowed for RBF Kernels
+approximation_on = 3; %0 for tabular, 1 for RBF with copy-paste features, 2 for RBF with centers over actions,3 GP
+max_points = 20;%50 %max centres allowed for RBF Kernels
 tol=1e-4;%1e-4;
-
-
 
 if approximation_on==0
     params.N_phi_s = N_state; % Number of state-features (= N_state for tabular, equal to RBF s for approx)
@@ -104,25 +102,15 @@ elseif approximation_on==3%GP approx
     
 end
 
-
-
 params.approximation_on=approximation_on;
-
 %% diagnostic parameters
 convergence_diagnostic_on=1;
 E_pi_phi=zeros(params.N_phi_sa,params.N_phi_sa);
 E_pi_phi_m=zeros(params.N_phi_sa,params.N_phi_sa);
 
-
-
-
-
-
 %% Algorithm Execution
-
 rew_exec = zeros(N_exec,1);
 eval_counter = zeros(N_exec,1);
-
 
 % Execution Loop
 for i =1:N_exec
@@ -144,36 +132,26 @@ for i =1:N_exec
         [mean_post var_post] = gpr.predict(x_input);
         var_post = 2-var_post; %slight hack
         %                params.N_phi_s=gpr.get('current_size');
-        
-        
-        
     end
     
     step_counter = 0;
     %eval_counter = 0;
     for j = 1:N_eps
         fprintf('At episode %d/%d  of execution %d/%d \n',j,N_eps,i,N_exec);
-        
         % Reset the initial state
         s_old = s_init;
         for k = 1: N_eps_length
             % Is it evlauation time ?
-            
             if(mod(step_counter,eval_freq) == 0)
                 %% evaluate
                 eval_counter(i) = eval_counter(i) + 1;
-                
                 rew_eval = zeros(1,N_eval);
-                
                 for eval_count = 1:N_eval;
-                    
                     s_prev = s_init;
-                    
                     for step_count = 1:N_eps_length
-                        
-                        [Q_opt,action] = gridworld_Q_greedy_act(theta,s_prev,params,gpr);
-                        
-                        s_next = gridworld_trans(s_prev,action,params);
+                        [Q_opt,action_new] = gridworld_Q_greedy_act(theta,s_prev,params,gpr);
+
+                        s_next = gridworld_trans(s_prev,action_new,params);
                         
                         [rew,breaker] = gridworld_rew(s_next,params);
                         
@@ -182,14 +160,12 @@ for i =1:N_exec
                         if breaker
                             break;
                         end
-                        
                         s_prev = s_next;
                     end
                 end
                 [rew_exec(i,eval_counter(i)),~] = get_statistics(rew_eval);
-            end%end eval loop
+            end %end eval loop
             % Increment the step counter
-            
             step_counter = step_counter + 1;
             
             %% implementation of epsilon greedy
@@ -201,61 +177,70 @@ for i =1:N_exec
             r = sample_discrete([p_eps 1-p_eps]);
             
             if r==1 % Explore
-                
                 p = 1/N_act.*ones(1,N_act);
-                
-                action = sample_discrete(p);
-                
+                action_new = sample_discrete(p);
             else % Exploit
-                [Q_opt,action] = gridworld_Q_greedy_act(theta,s_old,params,gpr);
+                [Q_opt,action_new] = gridworld_Q_greedy_act(theta,s_old,params,gpr);
             end
             
             %% state transitions and RL algorithms
-            
-            
             % get the Next State
-            
-            s_new = gridworld_trans(s_old,action,params);
+            s_new = gridworld_trans(s_old,action_new,params);
             
             % Calculate The Reward
-            
             [rew,breaker] = gridworld_rew(s_new,params);
             
-            
-            if approximation_on==3%GP approx
+            if (approximation_on == 3) %GP approx
                 [Q_opt,action_max] = gridworld_Q_greedy_act(theta,s_new,params,gpr);
-                meas_reward=rew;
-                meas_Qmax=Q_opt;
-                x=[s_old;action];
+                meas_reward = rew;
+                meas_Qmax = Q_opt;
+                x = [s_old;action_new];
                 gpr.update(x,meas_reward,meas_Qmax,params); %update the GP
                
-            elseif approximation_on==0||approximation_on==1%normal no GP
+            elseif (approximation_on == 0)||(approximation_on == 1) %normal no GP
                 alpha =  alpha_init/...
                     (step_counter)^alpha_dec;
                 % Get the feature vector
                 phi_s_old_act_old...
-                    = gridworld_Q_calculate_feature(s_old,action...
+                    = gridworld_Q_calculate_feature(s_old,action_new...
                     ,params);
                 % Calculate The Values
-                val_old = gridworld_Q_value(theta,s_old,action,params);
-                %get the optimal action
+                val_old = gridworld_Q_value(theta,s_old,action_new,params);
+                %% Q-Learning
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                %{
+                % get the optimal action
                 [Q_opt,action_max] = gridworld_Q_greedy_act(theta,s_new,params,gpr);
-                %get the new value
+                % vanialla q-learning - get the new value
                 val_new = gridworld_Q_value(theta,s_new,action_max,params);
+                %}
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                %% SARSA                
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                %{
+                % Check if going to explore new states or exploit knowledge
+                % of current states
+                r_new = sample_discrete([p_eps 1-p_eps]);
+                if r_new == 1 % Explore
+                    p = 1/N_act.*ones(1,N_act);
+                    action_new = sample_discrete(p);
+                
+                else % Exploit
+                    [Q_opt_new,action_new] = gridworld_Q_greedy_act(theta,s_new,params,gpr);
+                end
+                val_new = gridworld_Q_value(theta,s_new,action_new,params);
+                %}
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                
                 %compute TD error
                 TD = (rew + gamma*val_new - val_old);
                 %update the parameter vector
-                theta = theta + alpha*(TD.*phi_s_old_act_old);
-                
-                
+                theta = theta + alpha*(TD.*phi_s_old_act_old);                
             end
-            
-            
            %reset states 
             s_old = s_new;
               
             % Check Termination
-            
             if breaker
                 break;
             end
@@ -264,28 +249,17 @@ for i =1:N_exec
     end
 end
 
-
-
 %% Post Process
-
 % Find the minimum number of evals
-
 min_eval = min(eval_counter);
-
 rew_exec = rew_exec(:,1:min_eval);
-
 rew_total = zeros(1,min_eval);
 std_total = zeros(1,min_eval);
 
-
 for m =1:min_eval
-    
-    [rew_total(m),std] = get_statistics(rew_exec(:,m));
-    
+    [rew_total(m),std] = get_statistics(rew_exec(:,m)); 
     std_total(m) = 0.1*std;
 end
-
-
 %% Plots
 t = 1:min_eval;
 t = t.*eval_freq;

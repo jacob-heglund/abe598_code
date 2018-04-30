@@ -11,24 +11,18 @@ breaker = false; %stop if reached goal (terminate episode)
 rew = 0;
 
 % Check for goal
-if((s_new(1) == s_goal(1))...
-        && (s_new(2) == s_goal(2)))
+if((s_new(1) == s_goal(1)) && (s_new(2) == s_goal(2)))
     rew = rew + rew_goal;
     breaker = true;
-    
-    
 end
 
 
 % Check for Obstacles
-
 for i =1:N_obstacle
-    
     obs_x = obs_list(i,1);
     obs_y = obs_list(i,2);
     
-    if((s_new(1) == obs_x)...
-            && (s_new(2) == obs_y))
+    if((s_new(1) == obs_x) && (s_new(2) == obs_y))
         rew = rew + rew_obs;
     end
 end

@@ -35,7 +35,7 @@ for i = 1:k_approx
     T = [T dataMax];
     
     if i == k_approx
-        lambda = val
+        lambda = val;
     end
 end
 
